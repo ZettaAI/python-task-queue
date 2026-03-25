@@ -14,7 +14,7 @@ import types
 import sys
 
 import gevent.pool
-import multiprocessing as mp
+import multiprocess as mp  # used by pathos.pools.ProcessPool
 import numpy as np
 import pathos.pools
 from tqdm import tqdm
