@@ -513,8 +513,6 @@ def soloprocess_upload(QueueClass, queue_name, tasks):
   tq = QueueClass(queue_name, progress=False)
   return tq.insert(tasks, skip_insert_counter=True)
 
-error_queue = mp.Queue()
-
 def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None):
   if parallel is True:
     parallel = mp.cpu_count()
@@ -570,6 +568,7 @@ def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None
   # Don't fork, spawn entirely new processes. This
   # avoids accidental deadlocks.
   mp.set_start_method("spawn", force=True)
+  error_queue = mp.Manager().Queue()
 
   ct = 0
   with tqdm(desc="Upload", total=total) as pbar:
