@@ -524,11 +524,10 @@ def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None
     
   def capturing_soloprocess_upload(*args, **kwargs):
     try:
-      return soloprocess_upload(*args, **kwargs)
+      return (soloprocess_upload(*args, **kwargs), None)
     except Exception as err:
       print(err)
-      error_queue.put(err)
-    return 0
+      return (0, err)
 
   uploadfn = partial(
     capturing_soloprocess_upload, QueueClass, queue_name
@@ -568,12 +567,15 @@ def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None
   # Don't fork, spawn entirely new processes. This
   # avoids accidental deadlocks.
   spawn_ctx = mp.get_context("spawn")
-  error_queue = spawn_ctx.Manager().Queue()
 
   ct = 0
+  errors = []
   with tqdm(desc="Upload", total=total) as pbar:
     with pathos.pools.ProcessPool(parallel, context=spawn_ctx) as pool:
-      for num_inserted in pool.imap(uploadfn, sip(tasks, block_size)):
+      for num_inserted, err in pool.imap(uploadfn, sip(tasks, block_size)):
+        if err is not None:
+          errors.append(err)
+          continue
         pbar.update(num_inserted)
         ct += num_inserted
 
@@ -583,14 +585,8 @@ def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None
     os.environ["no_proxy"] = no_proxy
   # task.__class__.__module__ = cls_module
 
-  if not error_queue.empty():
-    errors = []
-    while not error_queue.empty():
-      err = error_queue.get()
-      if err is not StopIteration:
-        errors.append(err)
-    if len(errors):
-      raise Exception(errors)
+  if errors:
+    raise Exception(errors)
 
   return ct
 
