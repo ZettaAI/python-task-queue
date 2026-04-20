@@ -472,7 +472,7 @@ class LocalTaskQueue(object):
 
     # Don't fork, spawn entirely new processes. This
     # avoids accidental deadlocks.
-    mp.set_start_method("spawn", force=True)
+    spawn_ctx = mp.get_context("spawn")
 
     with tqdm(total=total, desc="Tasks", disable=(not progress)) as pbar:
       if self.parallel == 1:
@@ -480,7 +480,7 @@ class LocalTaskQueue(object):
           _task_execute(self.queue.pop(0))
           pbar.update()
       else:
-        with pathos.pools.ProcessPool(self.parallel) as executor:
+        with pathos.pools.ProcessPool(self.parallel, context=spawn_ctx) as executor:
           for _ in executor.imap(_task_execute, self.queue):
             pbar.update()
     
@@ -567,12 +567,12 @@ def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None
 
   # Don't fork, spawn entirely new processes. This
   # avoids accidental deadlocks.
-  mp.set_start_method("spawn", force=True)
-  error_queue = mp.Manager().Queue()
+  spawn_ctx = mp.get_context("spawn")
+  error_queue = spawn_ctx.Manager().Queue()
 
   ct = 0
   with tqdm(desc="Upload", total=total) as pbar:
-    with pathos.pools.ProcessPool(parallel) as pool:
+    with pathos.pools.ProcessPool(parallel, context=spawn_ctx) as pool:
       for num_inserted in pool.imap(uploadfn, sip(tasks, block_size)):
         pbar.update(num_inserted)
         ct += num_inserted
