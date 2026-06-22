@@ -574,7 +574,8 @@ def multiprocess_upload(QueueClass, queue_name, tasks, parallel=True, total=None
     with pathos.pools.ProcessPool(parallel, context=spawn_ctx) as pool:
       for num_inserted, err in pool.imap(uploadfn, sip(tasks, block_size)):
         if err is not None:
-          errors.append(err)
+          if not isinstance(err, StopIteration):
+            errors.append(err)
           continue
         pbar.update(num_inserted)
         ct += num_inserted
